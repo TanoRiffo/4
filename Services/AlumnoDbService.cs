@@ -25,6 +25,19 @@ public class AlumnoDbService : IAlumnoService
         return await _context.Alumnos.FindAsync(id);
     }
 
+    public async Task<bool?> EsActivo(string matricula)
+    {
+        DateTime hoy = DateTime.Today;
+
+        return await _context.Alumnos
+            .Where(a => a.MatriculaUniversitaria == matricula)
+            .Select(a => (bool?)_context.Matriculas.Any(m =>
+                m.AlumnoId == a.Id &&
+                m.Estado == EstadoMatricula.Vigente &&
+                m.FechaFinVigencia >= hoy))
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<Alumno> Crear(AlumnoCreateDTO nuevoAlumno)
     {
         // Instanciamos el alumno usando el constructor con los datos requeridos[cite: 1]

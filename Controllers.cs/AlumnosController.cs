@@ -90,27 +90,16 @@ public class AlumnosController : ControllerBase
     {
         _logger.LogDebug($"Validando estado del alumno con matrícula: {matricula}");
 
-        // 1. Buscamos al alumno por matrícula
-        var todosLosAlumnos = await _alumnoService.getAll();
-        var alumno = todosLosAlumnos.FirstOrDefault(a => a.MatriculaUniversitaria == matricula);
-
-        if (alumno == null)
+        bool? esActivo = await _alumnoService.EsActivo(matricula);
+        if (!esActivo.HasValue)
         {
             return NotFound(new { mensaje = "Matrícula no encontrada" });
         }
 
-        // 2. Evaluamos si es "Alumno Activo" 
-        // Nota: Para verificar el estado real, necesitaríamos inyectar IMatriculaService aquí
-        // o que AlumnoDbService tenga un método `EsActivo(id)`. 
-        // Por simplicidad, simularemos que si el alumno existe, está activo.
-        
-        bool esActivo = true; // Aquí iría la lógica real contra las Matrículas
-
-        // 3. Devolvemos el JSON que espera BiblioLink
         return Ok(new
         {
-            Matricula = alumno.MatriculaUniversitaria,
-            EsActivo = esActivo
+            Matricula = matricula,
+            EsActivo = esActivo.Value
         });
     }
     // GET: api/alumnos/{student_id}/loans
