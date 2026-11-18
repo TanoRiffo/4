@@ -14,11 +14,12 @@ Configura la clave de firma JWT y las credenciales temporales del primer adminis
 ```powershell
 dotnet user-secrets set "Jwt:Key" "<clave-aleatoria-de-al-menos-32-bytes>"
 dotnet user-secrets set "BiblioLink:ApiKey" "<clave-compartida-con-BiblioLink>"
+dotnet user-secrets set "BiblioLink:OutboundApiKey" "<clave-que-Academia-envia-a-BiblioLink>"
 dotnet user-secrets set "BootstrapAdmin:NombreUsuario" "admin"
 dotnet user-secrets set "BootstrapAdmin:Contrasena" "<contraseña-segura>"
 ```
 
-La aplicación crea ese Admin al iniciar solamente cuando la tabla de usuarios está vacía. Después del primer inicio, las claves `BootstrapAdmin` se pueden quitar; `Jwt:Key` y `BiblioLink:ApiKey` deben permanecer configuradas. Comparte la clave de BiblioLink con el sistema cliente por un canal seguro; no guardes claves reales en `appsettings.json` ni las registres en logs.
+La aplicación crea ese Admin al iniciar solamente cuando la tabla de usuarios está vacía. Después del primer inicio, las claves `BootstrapAdmin` se pueden quitar; `Jwt:Key`, `BiblioLink:ApiKey` y `BiblioLink:OutboundApiKey` deben permanecer configuradas. `BiblioLink:ApiKey` valida las llamadas entrantes de BiblioLink a Academia; `BiblioLink:OutboundApiKey` se envía en las llamadas de Academia a BiblioLink. No guardes claves reales en `appsettings.json` ni las registres en logs.
 
 Aplica las migraciones y ejecuta la API:
 

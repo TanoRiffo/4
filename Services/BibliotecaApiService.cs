@@ -11,13 +11,19 @@ public class BibliotecaApiService : IBibliotecaApiService
     private readonly HttpClient _httpClient;
     private readonly AcademiaCentralContext _context;
     private readonly ILogger<BibliotecaApiService> _logger;
+    private readonly IConfiguration _configuration;
 
     // Inyectamos HttpClient (que registraremos en Program.cs) y el Contexto para sacar la URL configurada
-    public BibliotecaApiService(HttpClient httpClient, AcademiaCentralContext context, ILogger<BibliotecaApiService> logger)
+    public BibliotecaApiService(
+        HttpClient httpClient,
+        AcademiaCentralContext context,
+        ILogger<BibliotecaApiService> logger,
+        IConfiguration configuration)
     {
         _httpClient = httpClient;
         _context = context;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task<bool> TienePrestamosPendientesAsync(string matriculaUniversitaria)
@@ -36,8 +42,7 @@ public class BibliotecaApiService : IBibliotecaApiService
             string url = $"{config.UrlBase}/prestamos/activos/{matriculaUniversitaria}";
             
             // Simulación de envío de API Key en los headers
-            _httpClient.DefaultRequestHeaders.Clear();
-            _httpClient.DefaultRequestHeaders.Add("X-API-Key", config.ApiKey);
+            SetApiKeyHeader();
 
             HttpResponseMessage response = await _httpClient.GetAsync(url);
             
@@ -73,8 +78,7 @@ public class BibliotecaApiService : IBibliotecaApiService
         if (config == null) return "[]";
 
         string url = $"{config.UrlBase}/prestamos/activos/{matriculaUniversitaria}";
-        _httpClient.DefaultRequestHeaders.Clear();
-        _httpClient.DefaultRequestHeaders.Add("X-API-Key", config.ApiKey);
+        SetApiKeyHeader();
 
         HttpResponseMessage response = await _httpClient.GetAsync(url);
         
@@ -84,5 +88,17 @@ public class BibliotecaApiService : IBibliotecaApiService
         }
         
         return "[]"; // Si falla, devolvemos una lista vacía de préstamos.
+    }
+
+    private void SetApiKeyHeader()
+    {
+        string? apiKey = _configuration["BiblioLink:OutboundApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("BiblioLink:OutboundApiKey debe configurarse en user-secrets.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Clear();
+        _httpClient.DefaultRequestHeaders.Add("X-API-Key", apiKey);
     }
 }
