@@ -13,13 +13,13 @@ Configura la clave de firma JWT y las credenciales temporales del primer adminis
 
 ```powershell
 dotnet user-secrets set "Jwt:Key" "<clave-aleatoria-de-al-menos-32-bytes>"
-dotnet user-secrets set "BiblioLink:ApiKey" "<clave-compartida-con-BiblioLink>"
+dotnet user-secrets set "BiblioLink:ApiKey" "<clave-que-BiblioLink-envia-a-Academia>"
 dotnet user-secrets set "BiblioLink:OutboundApiKey" "<clave-que-Academia-envia-a-BiblioLink>"
 dotnet user-secrets set "BootstrapAdmin:NombreUsuario" "admin"
 dotnet user-secrets set "BootstrapAdmin:Contrasena" "<contraseña-segura>"
 ```
 
-La aplicación crea ese Admin al iniciar solamente cuando la tabla de usuarios está vacía. Después del primer inicio, las claves `BootstrapAdmin` se pueden quitar; `Jwt:Key`, `BiblioLink:ApiKey` y `BiblioLink:OutboundApiKey` deben permanecer configuradas. `BiblioLink:ApiKey` valida las llamadas entrantes de BiblioLink a Academia; `BiblioLink:OutboundApiKey` se envía en las llamadas de Academia a BiblioLink. No guardes claves reales en `appsettings.json` ni las registres en logs.
+La aplicación crea ese Admin al iniciar solamente cuando la tabla de usuarios está vacía. Después del primer inicio, las claves `BootstrapAdmin` se pueden quitar; `Jwt:Key`, `BiblioLink:ApiKey` y `BiblioLink:OutboundApiKey` deben permanecer configuradas. Son claves independientes: `BiblioLink:ApiKey` es la que BiblioLink debe enviar a Academia, mientras que `BiblioLink:OutboundApiKey` es la que Academia envía a BiblioLink. Configura los valores reales en User Secrets, no en `appsettings.json`, y no los registres en logs.
 
 Aplica las migraciones y ejecuta la API:
 
@@ -71,4 +71,12 @@ Solo Admin puede crear usuarios con `POST /api/auth/usuarios`. Ejemplo de cuerpo
 - `/api/carreras`: consulta y gestión de carreras.
 - `/api/matriculas`: consulta y gestión de matrículas.
 
-La validación `GET /api/alumnos/{matricula}/estado` no requiere JWT, pero sí el header `X-API-Key` con el valor configurado en `BiblioLink:ApiKey`. Si falta o no coincide, responde `401`.
+## Integración con BiblioLink
+
+En desarrollo local, Academia Central usa `http://localhost:5111/api` y BiblioLink usa `http://localhost:5245/api`. Academia obtiene la URL base de BiblioLink del campo `UrlBase` en `ConfiguracionesApiBiblioteca`.
+
+El contrato de rutas, headers, respuestas y tareas pendientes está en [CONTRATO_INTEGRACION.md](./CONTRATO_INTEGRACION.md).
+
+- **BiblioLink consulta a Academia:** `GET /api/alumnos/{matricula}/estado`. No requiere JWT; requiere `X-API-Key` con el valor configurado en `BiblioLink:ApiKey`. Responde `200` con `{ "matricula": "A1001", "esActivo": true }` (o `false`), `404` con `{ "mensaje": "Matrícula no encontrada" }` si la matrícula no existe y `401` si falta la clave o no coincide.
+- **Academia consulta a BiblioLink:** `GET {UrlBase}/prestamos/activos/{matricula}`. Academia envía `X-API-Key` con `BiblioLink:OutboundApiKey`. BiblioLink debe responder `200` con una lista de préstamos (`prestamoId`, `libroTitulo`, `estado`); si no hay préstamos, la lista es `[]`. Una lista con préstamos, una respuesta no exitosa o un fallo de comunicación impiden crear la matrícula y producen `403`.
+- **Consulta de préstamos desde Academia:** `GET /api/alumnos/{id}/loans` requiere JWT y está disponible para los roles Admin y Personal. Personal puede consultar préstamos, pero no realizar operaciones administrativas.
