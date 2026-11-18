@@ -13,6 +13,7 @@ public class AcademiaCentralContext : DbContext
     public DbSet<Alumno> Alumnos { get; set; }
     public DbSet<Matricula> Matriculas { get; set; }
     public DbSet<ConfiguracionApiBiblioteca> ConfiguracionesApiBiblioteca { get; set; }
+    public DbSet<Usuario> Usuarios { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +26,10 @@ public class AcademiaCentralContext : DbContext
 
         modelBuilder.Entity<Carrera>()
             .HasIndex(c => c.CodigoUnico)
+            .IsUnique();
+
+        modelBuilder.Entity<Usuario>()
+            .HasIndex(u => u.NombreUsuario)
             .IsUnique();
 
         modelBuilder.Entity<ConfiguracionApiBiblioteca>().HasData(

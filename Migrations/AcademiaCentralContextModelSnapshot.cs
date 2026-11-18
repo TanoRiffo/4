@@ -193,6 +193,36 @@ namespace AcademiaCentralApi.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AcademiaCentralApi.Models.Usuario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("AlumnoId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("NombreUsuario")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Rol")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlumnoId");
+
+                    b.HasIndex("NombreUsuario")
+                        .IsUnique();
+
+                    b.ToTable("Usuarios");
+                });
+
             modelBuilder.Entity("AcademiaCentralApi.Models.Matricula", b =>
                 {
                     b.HasOne("AcademiaCentralApi.Models.Alumno", "Alumno")
@@ -210,6 +240,15 @@ namespace AcademiaCentralApi.Migrations
                     b.Navigation("Alumno");
 
                     b.Navigation("Carrera");
+                });
+
+            modelBuilder.Entity("AcademiaCentralApi.Models.Usuario", b =>
+                {
+                    b.HasOne("AcademiaCentralApi.Models.Alumno", "Alumno")
+                        .WithMany()
+                        .HasForeignKey("AlumnoId");
+
+                    b.Navigation("Alumno");
                 });
 #pragma warning restore 612, 618
         }
