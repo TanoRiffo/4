@@ -60,6 +60,7 @@ Solo Admin puede crear usuarios con `POST /api/auth/usuarios`. Ejemplo de cuerpo
 
 - Los endpoints de alumnos y carreras requieren autenticación. Admin puede listar y modificar; Alumno solo puede consultar su propio alumno y sus matrículas.
 - Los cambios de matrículas (`POST`, `PUT`, `DELETE`) requieren Admin.
+- `GET /api/alumnos/{id}/loans` está disponible para Admin y Personal; Personal solo puede consultar préstamos.
 - Para comprobarlo en Swagger, inicia sesión como Admin, copia el token en **Authorize** y crea un usuario Alumno asociado a un alumno existente. Luego inicia sesión con ese Alumno y verifica que `GET /api/alumnos/{id}` y `GET /api/matriculas` solo permitan consultar sus propios datos. Sin token, las rutas protegidas responden `401`; con rol insuficiente, `403`.
 - Si la biblioteca rechaza una matrícula por préstamos pendientes, la API conserva la respuesta `403`.
 

@@ -119,7 +119,7 @@ public class AlumnosController : ControllerBase
     }
     // GET: api/alumnos/{student_id}/loans
     // Endpoint proxy para que el personal universitario consulte los préstamos[cite: 2]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Personal")]
     [HttpGet("{student_id}/loans")]
     public async Task<ActionResult> GetPrestamosActivosProxy(int student_id, [FromServices] IBibliotecaApiService bibliotecaService)
     {
