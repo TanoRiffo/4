@@ -1,11 +1,13 @@
 using AcademiaCentralApi.DTOs;
 using AcademiaCentralApi.Interfaces;
 using AcademiaCentralApi.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AcademiaCentralApi.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class MatriculasController : ControllerBase
 {
@@ -21,7 +23,18 @@ public class MatriculasController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Matricula>>> GetAll()
     {
-        return Ok(await _matriculaService.getAll());
+        List<Matricula> matriculas = await _matriculaService.getAll();
+        if (User.IsInRole(nameof(RolUsuario.Alumno)))
+        {
+            if (!int.TryParse(User.FindFirst("alumnoId")?.Value, out int alumnoId))
+            {
+                return Forbid();
+            }
+
+            matriculas = matriculas.Where(m => m.AlumnoId == alumnoId).ToList();
+        }
+
+        return Ok(matriculas);
     }
 
     [HttpGet("{id}")]
@@ -29,10 +42,19 @@ public class MatriculasController : ControllerBase
     {
         var matricula = await _matriculaService.ObtenerPorId(id);
         if (matricula == null) return NotFound(new { mensaje = "Matrícula no encontrada" });
+
+        if (User.IsInRole(nameof(RolUsuario.Alumno)) &&
+            (!int.TryParse(User.FindFirst("alumnoId")?.Value, out int alumnoId) ||
+             matricula.AlumnoId != alumnoId))
+        {
+            return Forbid();
+        }
+
         return Ok(matricula);
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Matricula>> Create([FromBody] MatriculaCreateDTO nuevaMatricula)
     {
         try
@@ -55,6 +77,7 @@ public class MatriculasController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] MatriculaUpdateDTO matriculaActualizada)
     {
         var actualizado = await _matriculaService.Actualizar(id, matriculaActualizada);
@@ -63,6 +86,7 @@ public class MatriculasController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var eliminado = await _matriculaService.Eliminar(id);

@@ -1,11 +1,14 @@
 using AcademiaCentralApi.DTOs;
 using AcademiaCentralApi.Interfaces;
 using AcademiaCentralApi.Models;
+using AcademiaCentralApi.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AcademiaCentralApi.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class AlumnosController : ControllerBase
 {
@@ -19,6 +22,7 @@ public class AlumnosController : ControllerBase
     }
 
     // GET: api/alumnos
+    [Authorize(Roles = "Admin")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Alumno>>> GetAll()
     {
@@ -30,6 +34,12 @@ public class AlumnosController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<Alumno>> GetById(int id)
     {
+        if (User.IsInRole(nameof(RolUsuario.Alumno)) &&
+            (!int.TryParse(User.FindFirst("alumnoId")?.Value, out int alumnoId) || alumnoId != id))
+        {
+            return Forbid();
+        }
+
         Alumno? alumno = await _alumnoService.ObtenerPorId(id);
 
         if (alumno != null)
@@ -44,6 +54,7 @@ public class AlumnosController : ControllerBase
     }
 
     // POST: api/alumnos
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<Alumno>> Create([FromBody] AlumnoCreateDTO nuevoAlumno)
     {
@@ -58,6 +69,7 @@ public class AlumnosController : ControllerBase
     }
 
     // PUT: api/alumnos/{id}
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] AlumnoUpdateDTO alumnoActualizado)
     {
@@ -71,6 +83,7 @@ public class AlumnosController : ControllerBase
     }
 
     // DELETE: api/alumnos/{id}
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -85,6 +98,8 @@ public class AlumnosController : ControllerBase
 
     // GET: api/alumnos/{matricula}/estado
     // Este endpoint es el que consumirá la "BiblioLink" para validar la elegibilidad
+    [AllowAnonymous]
+    [ApiKey]
     [HttpGet("{matricula}/estado")]
     public async Task<ActionResult> ValidarEstadoAlumno(string matricula)
     {
@@ -104,6 +119,7 @@ public class AlumnosController : ControllerBase
     }
     // GET: api/alumnos/{student_id}/loans
     // Endpoint proxy para que el personal universitario consulte los préstamos[cite: 2]
+    [Authorize(Roles = "Admin")]
     [HttpGet("{student_id}/loans")]
     public async Task<ActionResult> GetPrestamosActivosProxy(int student_id, [FromServices] IBibliotecaApiService bibliotecaService)
     {

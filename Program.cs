@@ -19,6 +19,7 @@ builder.Services.AddControllers();
 string jwtIssuer = builder.Configuration["Jwt:Issuer"]
     ?? throw new InvalidOperationException("Falta configurar Jwt:Issuer.");
 string jwtKey = builder.Configuration["Jwt:Key"] ?? string.Empty;
+string biblioLinkApiKey = builder.Configuration["BiblioLink:ApiKey"] ?? string.Empty;
 int jwtExpirationMinutes = builder.Configuration.GetValue<int>("Jwt:ExpirationMinutes");
 
 if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
@@ -29,6 +30,11 @@ if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
 if (jwtExpirationMinutes <= 0)
 {
     throw new InvalidOperationException("Jwt:ExpirationMinutes debe ser mayor que cero.");
+}
+
+if (string.IsNullOrWhiteSpace(biblioLinkApiKey))
+{
+    throw new InvalidOperationException("BiblioLink:ApiKey debe configurarse en user-secrets.");
 }
 
 builder.Services

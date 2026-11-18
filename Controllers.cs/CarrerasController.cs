@@ -1,11 +1,13 @@
 using AcademiaCentralApi.DTOs;
 using AcademiaCentralApi.Interfaces;
 using AcademiaCentralApi.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AcademiaCentralApi.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class CarrerasController : ControllerBase
 {
@@ -44,6 +46,7 @@ public class CarrerasController : ControllerBase
     }
 
     // POST: api/carreras
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<Carrera>> Create([FromBody] CarreraCreateDTO nuevaCarrera)
     {
@@ -57,6 +60,7 @@ public class CarrerasController : ControllerBase
     }
 
     // PUT: api/carreras/{id}
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] CarreraUpdateDTO carreraActualizada)
     {
@@ -70,6 +74,7 @@ public class CarrerasController : ControllerBase
     }
 
     // DELETE: api/carreras/{id}
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
