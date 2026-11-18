@@ -5,30 +5,64 @@ API REST de Academia Central para consultar y administrar alumnos, carreras, mat
 ## Requisitos
 
 - .NET SDK 10
-- Entity Framework Core CLI (`dotnet tool install --global dotnet-ef`, si aún no está instalado)
+- Entity Framework Core CLI (`dotnet tool install --global dotnet-ef --version 10.0.12`, si aún no está instalado)
 
-## Configuración y ejecución
+## Tutorial: primer inicio y consulta como Admin
 
-Configura la clave de firma JWT y las credenciales temporales del primer administrador con User Secrets. Usa una clave aleatoria de al menos 32 bytes y una contraseña segura:
+### 1. Clonar y ejecutar el script
 
-```powershell
-dotnet user-secrets set "Jwt:Key" "<clave-aleatoria-de-al-menos-32-bytes>"
-dotnet user-secrets set "BiblioLink:ApiKey" "<clave-que-BiblioLink-envia-a-Academia>"
-dotnet user-secrets set "BiblioLink:OutboundApiKey" "<clave-que-Academia-envia-a-BiblioLink>"
-dotnet user-secrets set "BootstrapAdmin:NombreUsuario" "admin"
-dotnet user-secrets set "BootstrapAdmin:Contrasena" "<contraseña-segura>"
-```
-
-La aplicación crea ese Admin al iniciar solamente cuando la tabla de usuarios está vacía. Después del primer inicio, las claves `BootstrapAdmin` se pueden quitar; `Jwt:Key`, `BiblioLink:ApiKey` y `BiblioLink:OutboundApiKey` deben permanecer configuradas. Son claves independientes: `BiblioLink:ApiKey` es la que BiblioLink debe enviar a Academia, mientras que `BiblioLink:OutboundApiKey` es la que Academia envía a BiblioLink. Configura los valores reales en User Secrets, no en `appsettings.json`, y no los registres en logs.
-
-Aplica las migraciones y ejecuta la API:
+Desde PowerShell:
 
 ```powershell
-dotnet ef database update
-dotnet run --launch-profile http
+git clone https://github.com/TanoRiffo/4.git
+Set-Location .\4
 ```
 
-La documentación interactiva de Swagger está disponible en [http://localhost:5111/swagger](http://localhost:5111/swagger).
+Si todavía no tienes Entity Framework CLI, instálalo una vez:
+
+```powershell
+dotnet tool install --global dotnet-ef --version 10.0.12
+```
+
+Inicia la configuración y la API con:
+
+```powershell
+.\scripts\Iniciar-Academia.ps1
+```
+
+Si Windows bloquea la ejecución del script, puedes habilitar scripts solo en esa ventana de PowerShell y volver a ejecutarlo:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\scripts\Iniciar-Academia.ps1
+```
+
+En el primer uso, el script genera la clave JWT y pide los secretos que falten, junto con el usuario y contraseña iniciales del Admin. No muestra las claves al escribirlas; la contraseña se solicita dos veces. Aplica las migraciones, carga los datos de prueba y levanta la API. Usa una base separada en `%LOCALAPPDATA%`, así que no modifica `AcademiaCentral.db`.
+
+Si vuelves a ejecutar el script con la API detenida y la base existente, pregunta si quieres reiniciar:
+
+- **Reinicio seguro:** borra solo la base de prueba, conserva las claves de BiblioLink, renueva la clave JWT y pide credenciales nuevas para el Admin.
+- **Borrado total:** borra la base y todos los User Secrets del proyecto. Requiere escribir `BORRAR TODO`; puede afectar otras copias del repo que comparten `UserSecretsId` y obliga a configurar nuevamente las claves de integración.
+
+Si el puerto `5111` ya está en uso, el script no borra datos ni inicia otra instancia. Detén la API con `Ctrl+C` antes de reiniciar.
+
+### 2. Iniciar sesión y consultar una ruta protegida
+
+Abre [Swagger](http://localhost:5111/swagger):
+
+1. Ejecuta `POST /api/auth/login` con el usuario y contraseña iniciales:
+
+   ```json
+   {
+     "nombreUsuario": "admin",
+     "contrasena": "<la-contraseña-configurada>"
+   }
+   ```
+
+2. Copia el valor `token` de la respuesta, pulsa **Authorize** y pega el token.
+3. Ejecuta `GET /api/alumnos`, una ruta que requiere el rol Admin. Debe responder `200 OK` con los alumnos de prueba.
+
+Sin token, `GET /api/alumnos` responde `401`; con un token de un usuario que no sea Admin, responde `403`.
 
 ## Autenticación
 
