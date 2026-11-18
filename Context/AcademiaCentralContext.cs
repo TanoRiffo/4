@@ -37,7 +37,7 @@ public class AcademiaCentralContext : DbContext
             {
                 Id = 9001,
                 Nombre = "BiblioLink",
-                UrlBase = "http://localhost:5000",
+                UrlBase = "http://localhost:5245/api",
                 ApiKey = ""
             });
 

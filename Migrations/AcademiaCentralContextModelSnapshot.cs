@@ -133,7 +133,7 @@ namespace AcademiaCentralApi.Migrations
                             Id = 9001,
                             ApiKey = "",
                             Nombre = "BiblioLink",
-                            UrlBase = "http://localhost:5000"
+                            UrlBase = "http://localhost:5245/api"
                         });
                 });
 
