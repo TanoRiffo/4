@@ -49,6 +49,26 @@ namespace AcademiaCentralApi.Migrations
                         .IsUnique();
 
                     b.ToTable("Alumnos");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 9001,
+                            Apellido = "Activo",
+                            DNI = "TEST-9001",
+                            Email = "alumno.activo@example.invalid",
+                            MatriculaUniversitaria = "TEST-ACTIVO-9001",
+                            Nombre = "Alumno"
+                        },
+                        new
+                        {
+                            Id = 9002,
+                            Apellido = "Inactivo",
+                            DNI = "TEST-9002",
+                            Email = "alumno.inactivo@example.invalid",
+                            MatriculaUniversitaria = "TEST-INACTIVO-9002",
+                            Nombre = "Alumno"
+                        });
                 });
 
             modelBuilder.Entity("AcademiaCentralApi.Models.Carrera", b =>
@@ -74,6 +94,15 @@ namespace AcademiaCentralApi.Migrations
                         .IsUnique();
 
                     b.ToTable("Carreras");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 9001,
+                            CodigoUnico = "TEST-9001",
+                            Duracion = 4,
+                            Nombre = "Carrera de prueba"
+                        });
                 });
 
             modelBuilder.Entity("AcademiaCentralApi.Models.ConfiguracionApiBiblioteca", b =>
@@ -97,6 +126,15 @@ namespace AcademiaCentralApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ConfiguracionesApiBiblioteca");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 9001,
+                            ApiKey = "",
+                            Nombre = "BiblioLink",
+                            UrlBase = "http://localhost:5000"
+                        });
                 });
 
             modelBuilder.Entity("AcademiaCentralApi.Models.Matricula", b =>
@@ -131,6 +169,28 @@ namespace AcademiaCentralApi.Migrations
                     b.HasIndex("CarreraId");
 
                     b.ToTable("Matriculas");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 9001,
+                            AlumnoId = 9001,
+                            CarreraId = 9001,
+                            Estado = 0,
+                            FechaFinVigencia = new DateTime(2099, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            FechaInicioVigencia = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            PeriodoAcademico = "2026-2"
+                        },
+                        new
+                        {
+                            Id = 9002,
+                            AlumnoId = 9002,
+                            CarreraId = 9001,
+                            Estado = 1,
+                            FechaFinVigencia = new DateTime(2024, 12, 31, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            FechaInicioVigencia = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            PeriodoAcademico = "2024-1"
+                        });
                 });
 
             modelBuilder.Entity("AcademiaCentralApi.Models.Matricula", b =>
