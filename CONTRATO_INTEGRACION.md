@@ -13,6 +13,18 @@ BiblioLink consulta a Academia para validar alumnos antes de prestar libros. Aca
 
 En desarrollo local, Academia escucha en `http://localhost:5111` y BiblioLink en `http://localhost:5245`. Las URL base de las APIs incluyen `/api`: `http://localhost:5111/api` y `http://localhost:5245/api`. Academia lee la URL base de BiblioLink desde `ConfiguracionesApiBiblioteca.UrlBase`; esa fila se carga mediante datos iniciales.
 
+### Identidades compartidas para pruebas
+
+Las bases son independientes: cada equipo debe crear su propio registro y usar la misma matrícula universitaria como clave de cruce. Academia ya carga los dos primeros alumnos; BiblioLink debe crear los usuarios de prueba correspondientes en su propia base.
+
+| Matrícula | Academia | Registro que debe preparar BiblioLink | Prueba esperada |
+|---|---|---|---|
+| `TEST-ACTIVO-9001` | Alumno ID `9001`, con matrícula `Vigente` | Usuario con `Usuario.Matricula = TEST-ACTIVO-9001`, inicialmente sin préstamos | Academia responde `esActivo: true`; préstamos activos devuelve `[]` y permite matricular |
+| `TEST-INACTIVO-9002` | Alumno ID `9002`, con matrícula `Finalizada` | Usuario con `Usuario.Matricula = TEST-INACTIVO-9002` | Academia responde `esActivo: false`; BiblioLink debe rechazar el préstamo |
+| `TEST-NO-EXISTE` | No existe un alumno con esa matrícula | Crear el usuario solo si se quiere probar la consulta de un alumno inexistente | Academia responde `404`; BiblioLink debe tratarlo como no elegible |
+
+Para comprobar el bloqueo por préstamos, agregar un préstamo al usuario `TEST-ACTIVO-9001`: BiblioLink devolverá una lista no vacía y Academia responderá `403` al intentar matricularlo. Los IDs locales pueden ser distintos; el valor de matrícula debe coincidir exactamente.
+
 ## 2. BiblioLink consulta a Academia
 
 **Regla:** un Alumno puede pedir un préstamo solo si Academia responde `esActivo: true`. La consulta a Academia es la última validación del `POST /api/prestamos`. El Personal se considera elegible sin consultar; esta simplificación está pendiente de confirmación con el profesor.
@@ -90,11 +102,12 @@ Academia también expone `GET /api/alumnos/{id}/loans`, que reenvía el JSON de 
 | BiblioLink | Crear `ApiExterna` y cargar la URL base de Academia |
 | BiblioLink | Enviar la clave configurada por el equipo en el header `X-API-Key` al consultar el estado del alumno en Academia |
 | BiblioLink | Acordar e implementar la validación de la clave recibida en las llamadas desde Academia |
+| BiblioLink | Crear en su propia base los usuarios de prueba de la sección 1 con las matrículas acordadas |
 | Academia | Hecho: determinar el estado del alumno según una matrícula `Vigente` cuya `FechaFinVigencia` sea hoy o posterior |
 | Academia | Hecho: cargar `ConfiguracionesApiBiblioteca` con la URL base `http://localhost:5245/api` |
 | Academia | Hecho: exigir `X-API-Key` en la validación de estado y usar claves entrantes y salientes separadas |
 | Academia | Hecho: cargar datos de prueba con un alumno activo y otro con matrícula finalizada |
-| Ambos | Probar las dos direcciones de la integración con matrículas válidas, inexistentes, claves incorrectas y fallos de comunicación |
+| Ambos | Probar las dos direcciones de la integración con `TEST-ACTIVO-9001`, `TEST-INACTIVO-9002` y `TEST-NO-EXISTE`, además de claves incorrectas y fallos de comunicación |
 
 ## 5. Decisiones abiertas
 

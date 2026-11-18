@@ -39,6 +39,20 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 En el primer uso, el script genera la clave JWT y pide los secretos que falten, junto con el usuario y contraseña iniciales del Admin. No muestra las claves al escribirlas; la contraseña se solicita dos veces. Aplica las migraciones, carga los datos de prueba y levanta la API. Usa una base separada en `%LOCALAPPDATA%`, así que no modifica `AcademiaCentral.db`.
 
+### ¿Para qué sirve cada dato que solicita?
+
+El script reutiliza los secretos que ya estén configurados; solo pregunta por los que falten o cuando eliges un reinicio que los renueva:
+
+| Dato | Para qué se usa |
+|---|---|
+| `BiblioLink:ApiKey` | Clave que BiblioLink envía a Academia en `X-API-Key` para consultar el estado de un alumno. |
+| `BiblioLink:OutboundApiKey` | Clave que Academia envía a BiblioLink en `X-API-Key` al consultar sus préstamos. Debe coincidir con la que BiblioLink acepte. |
+| Usuario Admin | Identifica la cuenta inicial creada si la base no tiene usuarios. |
+| Contraseña y confirmación | Permiten iniciar sesión como Admin; se confirma para evitar errores al escribirla y debe tener al menos 8 caracteres. |
+| Clave JWT | El script la genera automáticamente si falta o no es válida. Firma los tokens de inicio de sesión; no se comparte con BiblioLink. |
+
+Las claves API se ingresan de forma oculta y se guardan en User Secrets. Si BiblioLink todavía no está disponible, puedes usar claves locales para levantar y probar Academia; tendrás que coordinar valores coincidentes al integrar ambos sistemas.
+
 Si vuelves a ejecutar el script con la API detenida y la base existente, pregunta si quieres reiniciar:
 
 - **Reinicio seguro:** borra solo la base de prueba, conserva las claves de BiblioLink, renueva la clave JWT y pide credenciales nuevas para el Admin.
@@ -63,6 +77,43 @@ Abre [Swagger](http://localhost:5111/swagger):
 3. Ejecuta `GET /api/alumnos`, una ruta que requiere el rol Admin. Debe responder `200 OK` con los alumnos de prueba.
 
 Sin token, `GET /api/alumnos` responde `401`; con un token de un usuario que no sea Admin, responde `403`.
+
+### 3. Crear una cuenta y probar como Alumno
+
+Las migraciones cargan alumnos y matrículas de prueba, pero no crean cuentas de inicio de sesión para esos alumnos. Con el token Admin autorizado en Swagger, crea una cuenta asociada al alumno activo:
+
+`POST /api/auth/usuarios`
+
+```json
+{
+  "nombreUsuario": "alumno.prueba",
+  "contrasena": "<elige-una-contrasena-de-al-menos-8-caracteres>",
+  "rol": "Alumno",
+  "alumnoId": 9001
+}
+```
+
+Después inicia sesión en `POST /api/auth/login` con esas credenciales y reemplaza en **Authorize** el token Admin por el token de Alumno. Prueba:
+
+- `GET /api/alumnos/9001` → `200 OK`, consulta su propio perfil.
+- `GET /api/matriculas` → `200 OK`, devuelve solo las matrículas de ese alumno.
+- `GET /api/alumnos/9002` → `403 Forbidden`, no puede consultar el perfil de otro alumno.
+
+### Agregar otro alumno de prueba (opcional)
+
+Con el token Admin, ejecuta `POST /api/alumnos`:
+
+```json
+{
+  "nombre": "Alumno",
+  "apellido": "Prueba adicional",
+  "matriculaUniversitaria": "TEST-EXTRA-9003",
+  "email": "alumno.extra@example.invalid",
+  "dni": "TEST-DNI-9003"
+}
+```
+
+La respuesta incluye el `id` asignado. Usa ese valor como `alumnoId` al crearle una cuenta con `POST /api/auth/usuarios`. Crear el alumno no crea automáticamente una cuenta de acceso ni una matrícula.
 
 ## Autenticación
 
@@ -106,6 +157,12 @@ Solo Admin puede crear usuarios con `POST /api/auth/usuarios`. Ejemplo de cuerpo
 - `/api/matriculas`: consulta y gestión de matrículas.
 
 ## Integración con BiblioLink
+
+Academia y BiblioLink **no comparten una base de datos**. Cada API administra su propia SQLite y se comunica con la otra por HTTP. Para probar una misma persona en ambos sentidos, crea los registros correspondientes en cada API y usa la misma matrícula universitaria: `MatriculaUniversitaria` en Academia debe coincidir con `Usuario.Matricula` en BiblioLink. Los IDs de alumno son locales a Academia y no se comparten.
+
+La base de prueba de Academia incluye `TEST-ACTIVO-9001` (alumno ID `9001`, activo) y `TEST-INACTIVO-9002` (ID `9002`, matrícula finalizada). Esos registros no crean usuarios en BiblioLink ni afectan su base. Las migraciones los cargan en cualquier base de Academia que las aplique; son datos para desarrollo, no para producción. Si BiblioLink no está levantada, consultar el perfil o las matrículas ya existentes funciona, pero `POST /api/matriculas` bloquea por precaución y devuelve `403`.
+
+Para cruzar los casos, el otro equipo debe crear en su propia base usuarios de BiblioLink cuya `Usuario.Matricula` coincida exactamente con `TEST-ACTIVO-9001` y `TEST-INACTIVO-9002`. El usuario activo sin préstamos debe producir `[]`; al agregarle un préstamo, Academia debe bloquear la matrícula con `403`. Para `TEST-NO-EXISTE`, crea un usuario solo en BiblioLink y ninguno en Academia; así se verifica el `404` del chequeo de estado.
 
 En desarrollo local, Academia Central usa `http://localhost:5111/api` y BiblioLink usa `http://localhost:5245/api`. Academia obtiene la URL base de BiblioLink del campo `UrlBase` en `ConfiguracionesApiBiblioteca`.
 
