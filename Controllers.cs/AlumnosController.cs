@@ -118,7 +118,7 @@ public class AlumnosController : ControllerBase
         });
     }
     // GET: api/alumnos/{student_id}/loans
-    // Endpoint proxy para que el personal universitario consulte los préstamos[cite: 2]
+    // Endpoint proxy para que el personal universitario consulte los préstamos
     [Authorize(Roles = "Admin,Personal")]
     [HttpGet("{student_id}/loans")]
     public async Task<ActionResult> GetPrestamosActivosProxy(int student_id, [FromServices] IBibliotecaApiService bibliotecaService)
@@ -129,10 +129,17 @@ public class AlumnosController : ControllerBase
             return NotFound(new { mensaje = "Alumno no encontrado." });
         }
 
-        // Llamamos al servicio de la biblioteca para traer el JSON crudo
-        string jsonPrestamos = await bibliotecaService.GetPrestamosActivosAsync(alumno.MatriculaUniversitaria);
+        try
+        {
+            // Llamamos al servicio de la biblioteca para traer el JSON crudo
+            string jsonPrestamos = await bibliotecaService.GetPrestamosActivosAsync(alumno.MatriculaUniversitaria);
 
-        // Devolvemos el texto tal como viene de la otra API (Content en formato JSON)
-        return Content(jsonPrestamos, "application/json");
+            // Devolvemos el texto tal como viene de la otra API (Content en formato JSON)
+            return Content(jsonPrestamos, "application/json");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            return StatusCode(503, new { mensaje = "No se pudo conectar con la API de BiblioLink." });
+        }
     }
 }
