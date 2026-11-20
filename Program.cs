@@ -81,7 +81,7 @@ builder.Services.AddSwaggerGen(options =>
 
     options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
-        Description = "",
+        Description = "Se requiere una API Key para acceder a este endpoint. Debe enviarse en el header 'X-API-Key'.",
         Type = SecuritySchemeType.ApiKey,
         Name = "X-API-Key",
         In = ParameterLocation.Header
