@@ -158,8 +158,6 @@ Solo Admin puede crear usuarios con `POST /api/auth/usuarios`. Ejemplo de cuerpo
 
 ## Integración con BiblioLink
 
-Academia y BiblioLink **no comparten una base de datos**. Cada API administra su propia SQLite y se comunica con la otra por HTTP. Para probar una misma persona en ambos sentidos, crea los registros correspondientes en cada API y usa la misma matrícula universitaria: `MatriculaUniversitaria` en Academia debe coincidir con `Usuario.Matricula` en BiblioLink. Los IDs de alumno son locales a Academia y no se comparten.
-
 La base de prueba de Academia incluye `TEST-ACTIVO-9001` (alumno ID `9001`, activo) y `TEST-INACTIVO-9002` (ID `9002`, matrícula finalizada). Esos registros no crean usuarios en BiblioLink ni afectan su base. Las migraciones los cargan en cualquier base de Academia que las aplique; son datos para desarrollo, no para producción. Si BiblioLink no está levantada, consultar el perfil o las matrículas ya existentes funciona, pero `POST /api/matriculas` bloquea por precaución y devuelve `403`.
 
 Para cruzar los casos, el otro equipo debe crear en su propia base usuarios de BiblioLink cuya `Usuario.Matricula` coincida exactamente con `TEST-ACTIVO-9001` y `TEST-INACTIVO-9002`. El usuario activo sin préstamos debe producir `[]`; al agregarle un préstamo, Academia debe bloquear la matrícula con `403`. Para `TEST-NO-EXISTE`, crea un usuario solo en BiblioLink y ninguno en Academia; así se verifica el `404` del chequeo de estado.
