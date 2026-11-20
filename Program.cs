@@ -78,7 +78,21 @@ builder.Services.AddSwaggerGen(options =>
         In = ParameterLocation.Header
     });
     options.OperationFilter<AuthorizeOperationFilter>();
+
+    options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Description = "",
+        Type = SecuritySchemeType.ApiKey,
+        Name = "X-API-Key",
+        In = ParameterLocation.Header
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("ApiKey", document)] = []
+    });
 });
+
 
 builder.Services.AddScoped<ICarreraService, CarreraDbService>();
 builder.Services.AddScoped<IAlumnoService, AlumnoDbService>();
