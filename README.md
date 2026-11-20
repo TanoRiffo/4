@@ -171,3 +171,100 @@ El contrato de rutas, headers, respuestas y tareas pendientes está en [CONTRATO
 - **BiblioLink consulta a Academia:** `GET /api/alumnos/{matricula}/estado`. No requiere JWT; requiere `X-API-Key` con el valor configurado en `BiblioLink:ApiKey`. Responde `200` con `{ "matricula": "A1001", "esActivo": true }` (o `false`), `404` con `{ "mensaje": "Matrícula no encontrada" }` si la matrícula no existe y `401` si falta la clave o no coincide.
 - **Academia consulta a BiblioLink:** `GET {UrlBase}/prestamos/activos/{matricula}`. Academia envía `X-API-Key` con `BiblioLink:OutboundApiKey`. BiblioLink debe responder `200` con una lista de préstamos (`prestamoId`, `libroTitulo`, `estado`); si no hay préstamos, la lista es `[]`. Una lista con préstamos, una respuesta no exitosa o un fallo de comunicación impiden crear la matrícula y producen `403`.
 - **Consulta de préstamos desde Academia:** `GET /api/alumnos/{id}/loans` requiere JWT y está disponible para los roles Admin y Personal. Personal puede consultar préstamos, pero no realizar operaciones administrativas.
+
+
+### Caso de integración: alumno con un préstamo pendiente
+
+Este caso prueba la regla central de la integración de punta a punta: **Academia no matricula a un alumno que tiene préstamos activos en BiblioLink**. Se necesitan las dos APIs levantadas al mismo tiempo.
+
+**Antes de empezar**
+
+- Academia corre en `http://localhost:5111` y BiblioLink en `http://localhost:5245`.
+- `BiblioLink:OutboundApiKey` de Academia coincide con la clave que BiblioLink acepta, y `BiblioLink:ApiKey` de Academia coincide con la que BiblioLink envía.
+- La fila de `ConfiguracionesApiBiblioteca` apunta a BiblioLink. Si en la clase BiblioLink corre en otro puerto o en otro equipo, actualiza `UrlBase` en esa fila de la base de Academia; el valor sembrado es `http://localhost:5245/api`.
+- Tienes el token Admin autorizado en Swagger (ver el tutorial de arriba).
+
+**Paso 1. Crear el alumno en Academia**
+
+`POST /api/alumnos`
+
+```json
+{
+  "nombre": "Alumno",
+  "apellido": "Con préstamo",
+  "matriculaUniversitaria": "TEST-PRESTAMO-9004",
+  "email": "alumno.prestamo@example.invalid",
+  "dni": "TEST-DNI-9004"
+}
+```
+
+Anota el `id` de la respuesta. Se usa como `alumnoId` en los pasos siguientes.
+
+**Paso 2. Matricularlo por primera vez (todavía sin préstamos)**
+
+BiblioLink solo presta libros a alumnos activos, y en Academia un alumno es activo cuando tiene una matrícula `Vigente`. Por eso primero se matricula:
+
+`POST /api/matriculas`
+
+```json
+{
+  "alumnoId": 9003,
+  "carreraId": 9001,
+  "periodoAcademico": "2026-2"
+}
+```
+
+Respuesta esperada: `201 Created`. (Reemplaza `9003` por el `id` del paso 1.)
+
+**Paso 3. Registrar el préstamo en BiblioLink**
+
+En BiblioLink, crea un usuario con `Usuario.Matricula = TEST-PRESTAMO-9004` y registra un préstamo para él (`POST /api/prestamos` en BiblioLink). BiblioLink consulta a Academia `GET /api/alumnos/TEST-PRESTAMO-9004/estado`, recibe `esActivo: true` y permite el préstamo.
+
+**Paso 4. Ver el préstamo desde Academia**
+
+`GET /api/alumnos/{id}/loans` (token Admin o Personal). Debe devolver el préstamo que reporta BiblioLink:
+
+```json
+[
+  { "prestamoId": 12, "libroTitulo": "El Aleph", "estado": "Vigente" }
+]
+```
+
+**Paso 5. Intentar matricularlo en otro período**
+
+Se usa un período distinto porque, con el mismo período, Academia respondería antes que ya existe una matrícula vigente (`400`) y no llegaría a consultar la biblioteca.
+
+`POST /api/matriculas`
+
+```json
+{
+  "alumnoId": 9003,
+  "carreraId": 9001,
+  "periodoAcademico": "2027-1"
+}
+```
+
+Respuesta esperada: **`403 Forbidden`**
+
+```json
+{
+  "error": "Acceso Denegado",
+  "mensaje": "Debe devolver los libros pendientes o en mora antes de matricularse."
+}
+```
+
+**Paso 6. Devolver el libro y reintentar**
+
+Registra la devolución en BiblioLink. Con el préstamo cerrado, BiblioLink responde `[]` y repetir el `POST` del paso 5 devuelve `201 Created`.
+
+**Resultado esperado**
+
+| Situación en BiblioLink | `POST /api/matriculas` en Academia |
+|---|---|
+| Alumno sin préstamos, o matrícula desconocida (`[]`) | `201 Created` |
+| Alumno con préstamo `Vigente` o `Vencido` | `403` |
+| BiblioLink caída, sin respuesta o con error | `403`, por precaución |
+| Alumno o carrera inexistente | `400` |
+| Alumno con matrícula vigente en el mismo período | `400` |
+
+> Si `GET /api/alumnos/{id}/loans` devuelve `[]` pero esperabas un préstamo, revisa que `Usuario.Matricula` en BiblioLink coincida exactamente con `MatriculaUniversitaria` y que las claves API sean las correctas. Esa ruta devuelve `[]` también cuando BiblioLink falla, así que una lista vacía no distingue "sin préstamos" de "error de comunicación".
