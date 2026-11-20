@@ -41,7 +41,7 @@ public class BibliotecaApiService : IBibliotecaApiService
             // 2. Armar la URL y hacer la petición GET
             string url = $"{config.UrlBase}/prestamos/activos/{matriculaUniversitaria}";
             
-            // Simulación de envío de API Key en los headers
+            
             SetApiKeyHeader();
 
             HttpResponseMessage response = await _httpClient.GetAsync(url);

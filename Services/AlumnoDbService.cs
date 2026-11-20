@@ -40,7 +40,7 @@ public class AlumnoDbService : IAlumnoService
 
     public async Task<Alumno> Crear(AlumnoCreateDTO nuevoAlumno)
     {
-        // Instanciamos el alumno usando el constructor con los datos requeridos[cite: 1]
+        // Instanciamos el alumno usando el constructor con los datos requeridos
         Alumno alumno = new Alumno(
             nuevoAlumno.MatriculaUniversitaria,
             nuevoAlumno.Nombre, 
