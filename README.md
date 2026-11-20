@@ -79,3 +79,104 @@ En desarrollo local, Academia Central usa `http://localhost:5111/api` y BiblioLi
 - **BiblioLink consulta a Academia:** `GET /api/alumnos/{matricula}/estado`. No requiere JWT; requiere `X-API-Key` con el valor configurado en `BiblioLink:ApiKey`. Responde `200` con `{ "matricula": "A1001", "esActivo": true }` (o `false`), `404` con `{ "mensaje": "Matrícula no encontrada" }` si la matrícula no existe y `401` si falta la clave o no coincide.
 - **Academia consulta a BiblioLink:** `GET {UrlBase}/prestamos/activos/{matricula}`. Academia envía `X-API-Key` con `BiblioLink:OutboundApiKey`. BiblioLink debe responder `200` con una lista de préstamos (`prestamoId`, `libroTitulo`, `estado`); si no hay préstamos, la lista es `[]`. Una lista con préstamos, una respuesta no exitosa o un fallo de comunicación impiden crear la matrícula y producen `403`.
 - **Consulta de préstamos desde Academia:** `GET /api/alumnos/{id}/loans` requiere JWT y está disponible para los roles Admin y Personal. Personal puede consultar préstamos, pero no realizar operaciones administrativas.
+
+- ## Modelo de datos: Alumnos, Carreras y Matrículas
+
+Alumnos y Carreras se relacionan de muchos a muchos, y la tabla `Matriculas` resuelve esa relación: cada fila une un alumno con una carrera en un período académico.
+
+```mermaid
+erDiagram
+    ALUMNOS ||--o{ MATRICULAS : "tiene"
+    CARRERAS ||--o{ MATRICULAS : "tiene"
+
+    ALUMNOS {
+        int Id PK
+        string Nombre
+        string Apellido
+        string MatriculaUniversitaria UK
+        string Email
+        string DNI
+    }
+
+    MATRICULAS {
+        int Id PK
+        int AlumnoId FK
+        int CarreraId FK
+        string PeriodoAcademico
+        datetime FechaInicioVigencia
+        datetime FechaFinVigencia
+        int Estado "0 Vigente, 1 Finalizada, 2 Inactiva"
+    }
+
+    CARRERAS {
+        int Id PK
+        string Nombre
+        int Duracion
+        string CodigoUnico UK
+    }
+```
+
+`PK` es clave primaria, `FK` clave foránea y `UK` valor único.
+
+| Aspecto | Detalle |
+|---|---|
+| Índices únicos | `Alumnos.MatriculaUniversitaria` y `Carreras.CodigoUnico` no se pueden repetir. |
+| Borrado en cascada | Al eliminar un alumno o una carrera se eliminan sus matrículas. |
+| `Estado` | Se guarda como entero: `Vigente = 0`, `Finalizada = 1`, `Inactiva = 2`. |
+| Regla de negocio | Una sola matrícula `Vigente` por alumno y período. La valida `MatriculaDbService`, no la base de datos. |
+
+## Endpoint de creación de matrícula: `POST /api/matriculas`
+
+### Solicitud
+
+- **Acceso:** JWT con rol `Admin` (`Authorization: Bearer <token>`).
+- **Cuerpo** (`MatriculaCreateDTO`):
+
+  ```json
+  {
+    "alumnoId": 9001,
+    "carreraId": 9001,
+    "periodoAcademico": "2027-1"
+  }
+  ```
+
+El servidor fija el resto de los datos: inicio de vigencia = ahora, fin = ahora + 6 meses y estado = `Vigente`.
+
+### Respuestas
+
+| Código | Cuándo ocurre | Cuerpo |
+|---|---|---|
+| `201 Created` | Pasó todas las validaciones y no hay préstamos pendientes. | La matrícula creada (`Location` apunta a `GET /api/matriculas/{id}`). |
+| `400 Bad Request` | Alumno o carrera inexistente, o ya hay una matrícula vigente en ese período. | `{ "error": "Petición Inválida", "mensaje": "..." }` |
+| `401 Unauthorized` | Falta el token, es inválido o está vencido. | Sin cuerpo. |
+| `403 Forbidden` | Rol distinto de `Admin`; o BiblioLink informa préstamos pendientes, falla o no responde. | Por préstamos: `{ "error": "Acceso Denegado", "mensaje": "Debe devolver los libros pendientes o en mora antes de matricularse." }` |
+
+### Flujo de validación externa con BiblioLink
+
+Primero se valida el token y el rol, luego los datos locales. Solo si todo es correcto Academia consulta a BiblioLink con su `X-API-Key`. Una lista vacía permite continuar; una lista con préstamos, un error o la falta de respuesta bloquean la matrícula con `403` (criterio *fail-closed*: ante la duda, no se matricula).
+
+```mermaid
+sequenceDiagram
+    actor Admin as Cliente (Admin)
+    participant API as Academia API
+    participant DB as Base de Academia
+    participant Bib as API BiblioLink
+
+    Admin->>API: POST /api/matriculas (JWT + JSON)
+    Note over API: Valida JWT y rol Admin (401 / 403)
+    API->>DB: Verifica alumno, carrera y período
+
+    alt Datos inválidos
+        API-->>Admin: 400 Bad Request
+    else Datos válidos
+        API->>Bib: GET /prestamos/activos/{matricula} + X-API-Key
+        Bib-->>API: 200 con la lista de préstamos (o error / sin respuesta)
+
+        alt Lista vacía
+            API->>DB: Guarda la matrícula Vigente
+            API-->>Admin: 201 Created
+        else Con préstamos, error o sin respuesta
+            API-->>Admin: 403 Forbidden
+        end
+    end
+```
